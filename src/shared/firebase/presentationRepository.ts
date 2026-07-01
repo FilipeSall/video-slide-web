@@ -25,6 +25,17 @@ type UploadResult = {
   downloadUrl: string
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => window.clearTimeout(timeoutId))
+  })
+}
+
 function readLocalPresentations() {
   const rawValue = localStorage.getItem(localStorageKey)
 
@@ -74,7 +85,11 @@ export async function listPresentations() {
   }
 
   const presentationsQuery = query(collection(services.db, 'presentations'), orderBy('updatedAt', 'desc'))
-  const snapshot = await getDocs(presentationsQuery)
+  const snapshot = await withTimeout(
+    getDocs(presentationsQuery),
+    8000,
+    'Firebase configurado, mas o Firestore nao respondeu. Verifique se o banco foi criado e se as regras permitem leitura.',
+  )
 
   return snapshot.docs.map((presentationDoc) => presentationDoc.data() as Presentation)
 }
@@ -102,7 +117,11 @@ export async function savePresentation(presentation: Presentation) {
     return normalizedPresentation
   }
 
-  await setDoc(doc(services.db, 'presentations', normalizedPresentation.id), normalizedPresentation)
+  await withTimeout(
+    setDoc(doc(services.db, 'presentations', normalizedPresentation.id), normalizedPresentation),
+    12000,
+    'Firebase configurado, mas o Firestore nao respondeu ao salvar. Verifique regras de escrita e criacao do banco.',
+  )
   return normalizedPresentation
 }
 
@@ -114,7 +133,11 @@ export async function deletePresentation(presentationId: string) {
     return
   }
 
-  await deleteDoc(doc(services.db, 'presentations', presentationId))
+  await withTimeout(
+    deleteDoc(doc(services.db, 'presentations', presentationId)),
+    8000,
+    'Firebase configurado, mas o Firestore nao respondeu ao excluir.',
+  )
 }
 
 export async function uploadPresentationVideo(
@@ -141,19 +164,23 @@ export async function uploadPresentationVideo(
     contentType: file.type,
   })
 
-  return new Promise<UploadResult>((resolve, reject) => {
-    uploadTask.on(
-      'state_changed',
-      (snapshot: UploadTaskSnapshot) => {
-        onProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100))
-      },
-      reject,
-      async () => {
-        const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref)
-        resolve({ storagePath, downloadUrl })
-      },
-    )
-  })
+  return withTimeout(
+    new Promise<UploadResult>((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot: UploadTaskSnapshot) => {
+          onProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100))
+        },
+        reject,
+        async () => {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref)
+          resolve({ storagePath, downloadUrl })
+        },
+      )
+    }),
+    60000,
+    'Firebase Storage nao respondeu ao upload. Verifique bucket, regras e conexao.',
+  )
 }
 
 export function getPersistenceLabel() {
