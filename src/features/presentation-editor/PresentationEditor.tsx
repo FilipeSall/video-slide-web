@@ -44,7 +44,6 @@ export function PresentationEditor({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
   const [error, setError] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
   const [deletingVideoId, setDeletingVideoId] = useState('')
   const orderedVideos = useMemo(() => sortVideos(presentation.videos), [presentation.videos])
 
@@ -126,6 +125,8 @@ export function PresentationEditor({
     setError('')
 
     try {
+      await deletePresentationVideo(video)
+
       const videos = normalizeVideoOrder(
         presentation.videos.filter((currentVideo) => currentVideo.id !== videoId),
       )
@@ -137,15 +138,6 @@ export function PresentationEditor({
       }
 
       await onSave(nextPresentation)
-      try {
-        await deletePresentationVideo(video)
-      } catch (assetError) {
-        setError(
-          assetError instanceof Error
-            ? `Video removido da apresentacao, mas o arquivo nao foi apagado: ${assetError.message}`
-            : 'Video removido da apresentacao, mas o arquivo nao foi apagado.',
-        )
-      }
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'Nao foi possivel remover o video.')
     } finally {
@@ -170,55 +162,24 @@ export function PresentationEditor({
     onChange({ ...presentation, videos: normalizeVideoOrder(nextVideos) })
   }
 
-  async function handleSave() {
-    const title = presentation.title.trim()
-
-    if (!title) {
-      setError('Informe um titulo para salvar a apresentacao.')
-      return
-    }
-
-    setIsSaving(true)
-    setError('')
-
-    try {
-      await onSave({
-        ...presentation,
-        title,
-        status: orderedVideos.length > 0 ? 'ready' : 'draft',
-      })
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Nao foi possivel salvar.')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0 rounded-md border border-ink/10 bg-paper p-4 shadow-panel">
+        <div className="sea-card min-w-0 p-5 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <button className="control-link" type="button" onClick={onBack}>
                 Voltar para biblioteca
               </button>
               <input
-                className="mt-3 w-full border-none bg-transparent font-display text-3xl font-black leading-tight text-ink outline-none sm:text-5xl"
+                aria-label="Titulo da apresentacao"
+                className="title-input mt-3 font-display text-3xl font-black leading-tight sm:text-5xl"
                 value={presentation.title}
-                placeholder="Titulo da apresentacao"
+                placeholder="Digite o titulo da apresentacao"
                 onChange={(event) => updatePresentationTitle(event.target.value)}
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                className="button-secondary"
-                type="button"
-                disabled={isSaving}
-                onClick={handleSave}
-              >
-                {isSaving ? 'Salvando...' : 'Salvar'}
-              </button>
               <button
                 className="button-primary"
                 type="button"
@@ -230,7 +191,7 @@ export function PresentationEditor({
             </div>
           </div>
 
-          <div className="rounded-md border border-dashed border-ink/20 bg-white/70 p-5">
+          <div className="rounded-xl border border-dashed border-primary/25 bg-surface p-5">
             <input
               ref={fileInputRef}
               className="hidden"
@@ -240,8 +201,8 @@ export function PresentationEditor({
             />
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-sm font-bold uppercase tracking-[0.18em] text-rust">Upload</p>
-                <p className="mt-1 max-w-2xl text-sm text-ink/65">
+                <p className="sea-kicker">Upload</p>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
                   Adicione videos na ordem da apresentacao. Cada item pode ter um comportamento de
                   reproducao proprio.
                 </p>
@@ -259,29 +220,29 @@ export function PresentationEditor({
               <div className="mt-5">
                 <div className="mb-2 flex justify-between text-sm">
                   <span className="font-semibold text-ink">{uploadState.fileName}</span>
-                  <span className="text-ink/65">{uploadState.progress}%</span>
+                  <span className="text-muted">{uploadState.progress}%</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-ink/10">
+                <div className="h-2 overflow-hidden rounded-full bg-border">
                   <div
-                    className="h-full rounded-full bg-rust transition-all"
+                    className="h-full rounded-full bg-accent transition-all"
                     style={{ width: `${uploadState.progress}%` }}
                   />
                 </div>
               </div>
             )}
-            {error && <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {error && <p className="error-message mt-4">{error}</p>}
           </div>
         </div>
 
-        <aside className="rounded-md border border-ink/10 bg-ink p-4 text-paper shadow-panel">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-mint">Resumo</p>
+        <aside className="rounded-xl border border-primary-dark/10 bg-primary-dark p-5 text-white shadow-panel">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-mint">Resumo</p>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div>
-              <dt className="text-paper/50">Videos</dt>
+              <dt className="text-white/65">Videos</dt>
               <dd className="text-2xl font-black">{orderedVideos.length}</dd>
             </div>
             <div>
-              <dt className="text-paper/50">Duracao</dt>
+              <dt className="text-white/65">Duracao</dt>
               <dd className="text-2xl font-black">
                 {formatDuration(
                   orderedVideos.reduce((total, video) => total + video.durationSeconds, 0),
@@ -289,7 +250,7 @@ export function PresentationEditor({
               </dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-paper/50">Atualizado</dt>
+              <dt className="text-white/65">Atualizado</dt>
               <dd className="font-semibold">{formatDateTime(presentation.updatedAt)}</dd>
             </div>
           </dl>
@@ -298,9 +259,9 @@ export function PresentationEditor({
 
       <section className="grid gap-4">
         {orderedVideos.length === 0 ? (
-          <div className="rounded-md border border-ink/10 bg-paper p-8 text-center shadow-panel">
+          <div className="sea-card p-8 text-center">
             <p className="font-display text-2xl font-black text-ink">Nenhum video adicionado</p>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-ink/65">
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted">
               Use o upload para montar a primeira sequencia. O modo apresentacao sera liberado assim
               que existir pelo menos um video.
             </p>
@@ -308,16 +269,16 @@ export function PresentationEditor({
         ) : (
           orderedVideos.map((video, index) => (
             <article
-              className="grid gap-4 rounded-md border border-ink/10 bg-paper p-4 shadow-panel lg:grid-cols-[10rem_minmax(0,1fr)_18rem]"
+              className="sea-card grid gap-4 p-4 transition hover:border-primary/30 lg:grid-cols-[10rem_minmax(0,1fr)_18rem]"
               key={video.id}
             >
-              <div className="aspect-video overflow-hidden rounded bg-ink">
+              <div className="aspect-video overflow-hidden rounded-lg bg-primary-dark">
                 <video className="h-full w-full object-cover" muted src={video.downloadUrl} />
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-rust">
+                    <p className="sea-kicker">
                       Video {index + 1}
                     </p>
                     <h2 className="mt-1 truncate font-display text-2xl font-black text-ink">
@@ -344,7 +305,7 @@ export function PresentationEditor({
                   </div>
                 </div>
 
-                <dl className="mt-4 grid gap-2 text-sm text-ink/70 sm:grid-cols-2 xl:grid-cols-3">
+                <dl className="mt-4 grid gap-2 text-sm text-muted sm:grid-cols-2 xl:grid-cols-3">
                   <div>
                     <dt className="font-semibold text-ink">Tamanho</dt>
                     <dd>{formatBytes(video.sizeBytes)}</dd>
@@ -360,10 +321,6 @@ export function PresentationEditor({
                   <div>
                     <dt className="font-semibold text-ink">Upload</dt>
                     <dd>{formatDateTime(video.uploadedAt)}</dd>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <dt className="font-semibold text-ink">Storage</dt>
-                    <dd className="truncate">{video.storagePath}</dd>
                   </div>
                 </dl>
               </div>

@@ -4,7 +4,6 @@ import { PresentationEditor } from '../features/presentation-editor/Presentation
 import { PresentationPlayer } from '../features/presentation-player/PresentationPlayer'
 import {
   deletePresentation,
-  getPersistenceLabel,
   listPresentations,
   savePresentation,
 } from '../shared/firebase/presentationRepository'
@@ -21,7 +20,7 @@ function createPresentation(): Presentation {
 
   return {
     id: createId(),
-    title: 'Nova apresentacao',
+    title: '',
     videos: [],
     status: 'draft',
     createdAt: now,
@@ -118,31 +117,36 @@ export default function App() {
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <AppHeader onCreate={createNewPresentation} />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="rounded-md border border-ink/10 bg-paper p-5 shadow-panel">
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-rust">Biblioteca</p>
-            <h1 className="mt-2 max-w-4xl font-display text-4xl font-black leading-none text-ink sm:text-6xl">
-              Sequencias de video prontas para apresentar
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <section>
+          <div className="sea-card overflow-hidden p-6 sm:p-8">
+            <p className="sea-kicker">Biblioteca corporativa</p>
+            <h1 className="mt-3 max-w-4xl font-display text-3xl font-black leading-tight text-ink sm:text-5xl">
+              Sequencias de video organizadas para comunicacao institucional
             </h1>
-          </div>
-          <div className="rounded-md border border-ink/10 bg-mint p-5 shadow-panel">
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-ink/60">Persistencia</p>
-            <p className="mt-4 font-display text-3xl font-black">{getPersistenceLabel()}</p>
-            <p className="mt-3 text-sm text-ink/65">
-              Configure as variaveis Firebase para usar Firestore e Storage em vez do modo local.
+            <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
+              Monte apresentacoes com videos, preserve a ordem da narrativa e inicie o modo de
+              exibicao com controles claros para equipes internas e comunicacao corporativa.
             </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button className="button-primary" type="button" onClick={createNewPresentation}>
+                Nova apresentacao
+              </button>
+            </div>
           </div>
         </section>
 
         {isLoading ? (
-          <div className="rounded-md border border-ink/10 bg-paper p-8 text-center shadow-panel">
+          <div className="sea-card p-8 text-center text-muted">
             Carregando apresentacoes...
           </div>
         ) : presentations.length === 0 ? (
-          <section className="rounded-md border border-dashed border-ink/20 bg-paper p-10 text-center shadow-panel">
-            <p className="font-display text-3xl font-black">Nenhuma apresentacao salva</p>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-ink/65">
+          <section
+            className="sea-panel border-dashed p-10 text-center"
+            id="presentations"
+          >
+            <p className="font-display text-3xl font-black text-ink">Nenhuma apresentacao salva</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted">
               Crie a primeira apresentacao para adicionar videos, configurar comportamento e iniciar o
               modo apresentacao.
             </p>
@@ -151,7 +155,7 @@ export default function App() {
             </button>
           </section>
         ) : (
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" id="presentations">
             {presentations.map((presentation) => {
               const duration = presentation.videos.reduce(
                 (total, video) => total + video.durationSeconds,
@@ -160,24 +164,24 @@ export default function App() {
 
               return (
                 <article
-                  className="flex min-h-72 flex-col rounded-md border border-ink/10 bg-paper p-4 shadow-panel"
+                  className="sea-card flex min-h-72 flex-col p-5 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-panel"
                   key={presentation.id}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-rust">
+                      <p className="sea-kicker">
                         {presentation.videos.length} videos
                       </p>
-                      <h2 className="mt-2 line-clamp-2 font-display text-3xl font-black leading-none">
-                        {presentation.title}
+                      <h2 className="mt-2 line-clamp-2 font-display text-2xl font-black leading-tight text-ink">
+                        {presentation.title.trim() || 'Sem titulo'}
                       </h2>
                     </div>
-                    <span className="rounded bg-ink px-2 py-1 text-xs font-bold uppercase text-paper">
+                    <span className="status-pill">
                       {presentation.status}
                     </span>
                   </div>
 
-                  <dl className="mt-5 grid grid-cols-2 gap-3 text-sm text-ink/65">
+                  <dl className="mt-5 grid grid-cols-2 gap-3 text-sm text-muted">
                     <div>
                       <dt className="font-semibold text-ink">Duracao</dt>
                       <dd>{formatDuration(duration)}</dd>
@@ -230,17 +234,23 @@ type AppHeaderProps = {
 
 function AppHeader({ onCreate }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 border-b border-ink/10 bg-canvas/92 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-        <div>
-          <p className="font-display text-xl font-black uppercase tracking-[0.08em]">Video Slide</p>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/50">
-            Studio interno
-          </p>
+    <header className="sticky top-0 z-20 border-b border-border bg-white/95 px-4 py-3 shadow-[0_1px_0_rgb(226_232_240)] backdrop-blur sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            alt=""
+            className="size-9 shrink-0 rounded-full border border-accent/30 object-cover sm:size-10"
+            src="/logo.webp"
+          />
+          <div className="min-w-0">
+            <p className="font-display text-base font-black text-ink sm:text-lg">SEA Tecnologia</p>
+          </div>
         </div>
-        <button className="button-primary" type="button" onClick={onCreate}>
-          Nova apresentacao
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="button-primary" type="button" onClick={onCreate}>
+            Nova apresentacao
+          </button>
+        </div>
       </div>
     </header>
   )
@@ -253,9 +263,9 @@ type ToastProps = {
 
 function Toast({ message, onClose }: ToastProps) {
   return (
-    <div className="fixed bottom-4 right-4 z-30 flex max-w-sm items-center gap-3 rounded-md border border-ink/10 bg-paper p-3 text-sm shadow-panel">
+    <div className="fixed bottom-4 right-4 z-30 flex max-w-sm items-center gap-3 rounded-lg border border-border bg-white p-3 text-sm text-ink shadow-panel">
       <span>{message}</span>
-      <button className="control-link" type="button" onClick={onClose}>
+      <button className="control-link" type="button" aria-label="Fechar aviso" onClick={onClose}>
         Fechar
       </button>
     </div>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Presentation } from '../../entities/presentation/types'
 import { playbackModeLabels } from '../../entities/video/types'
 
@@ -16,7 +16,29 @@ export function PresentationPlayer({ presentation, onClose }: PresentationPlayer
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isWaiting, setIsWaiting] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
+  const [areControlsVisible, setAreControlsVisible] = useState(false)
+  const hideControlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentVideo = videos[currentIndex]
+
+  const revealControls = useCallback(() => {
+    setAreControlsVisible(true)
+
+    if (hideControlsTimeoutRef.current) {
+      clearTimeout(hideControlsTimeoutRef.current)
+    }
+
+    hideControlsTimeoutRef.current = setTimeout(() => {
+      setAreControlsVisible(false)
+    }, 1000)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (hideControlsTimeoutRef.current) {
+        clearTimeout(hideControlsTimeoutRef.current)
+      }
+    }
+  }, [])
 
   function advance() {
     setIsWaiting(false)
@@ -52,15 +74,19 @@ export function PresentationPlayer({ presentation, onClose }: PresentationPlayer
 
   if (!currentVideo || isFinished) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-ink p-6 text-paper">
+      <main className="flex min-h-screen items-center justify-center bg-primary-dark p-6 text-white">
         <section className="w-full max-w-2xl text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-mint">Fim</p>
-          <h1 className="mt-4 font-display text-5xl font-black">Apresentacao concluida</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-mint">Fim</p>
+          <h1 className="mt-4 font-display text-5xl font-black leading-tight">Apresentacao concluida</h1>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <button className="button-on-dark" type="button" onClick={() => {
-              setCurrentIndex(0)
-              setIsFinished(false)
-            }}>
+            <button
+              className="button-on-dark"
+              type="button"
+              onClick={() => {
+                setCurrentIndex(0)
+                setIsFinished(false)
+              }}
+            >
               Reproduzir novamente
             </button>
             <button className="button-on-dark-muted" type="button" onClick={onClose}>
@@ -73,16 +99,31 @@ export function PresentationPlayer({ presentation, onClose }: PresentationPlayer
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-ink text-paper">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-paper/10 px-4 py-3">
+    <main
+      className="relative flex min-h-screen flex-col bg-primary-dark text-white"
+      onMouseMove={revealControls}
+    >
+      <header
+        className={`player-controls absolute inset-x-0 top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-primary-dark/95 px-4 py-3 backdrop-blur transition-opacity duration-300 focus-within:pointer-events-auto focus-within:opacity-100 ${
+          areControlsVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        aria-hidden={areControlsVisible ? undefined : true}
+      >
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-mint">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-mint">
             {currentIndex + 1} / {videos.length} · {playbackModeLabels[currentVideo.playbackMode]}
           </p>
-          <h1 className="truncate font-display text-xl font-black sm:text-2xl">{presentation.title}</h1>
+          <h1 className="truncate font-display text-xl font-black sm:text-2xl">
+            {presentation.title}
+          </h1>
         </div>
         <div className="flex gap-2">
-          <button className="button-on-dark-muted" type="button" disabled={currentIndex === 0} onClick={goBack}>
+          <button
+            className="button-on-dark-muted"
+            type="button"
+            disabled={currentIndex === 0}
+            onClick={goBack}
+          >
             Anterior
           </button>
           <button className="button-on-dark-muted" type="button" onClick={advance}>
@@ -99,7 +140,7 @@ export function PresentationPlayer({ presentation, onClose }: PresentationPlayer
           ref={videoRef}
           key={currentVideo.id}
           autoPlay
-          className="h-full max-h-[calc(100vh-5rem)] w-full object-contain"
+          className="h-full max-h-screen w-full object-contain"
           controls
           loop={currentVideo.playbackMode === 'loop'}
           src={currentVideo.downloadUrl}
@@ -107,7 +148,7 @@ export function PresentationPlayer({ presentation, onClose }: PresentationPlayer
         />
 
         {isWaiting && (
-          <div className="absolute inset-x-0 bottom-6 mx-auto w-[min(92vw,34rem)] rounded-md border border-paper/15 bg-ink/90 p-4 text-center shadow-panel backdrop-blur">
+          <div className="absolute inset-x-0 bottom-6 mx-auto w-[min(92vw,34rem)] rounded-xl border border-white/15 bg-primary-dark/92 p-4 text-center shadow-panel backdrop-blur">
             <p className="font-semibold">Video pausado ao final.</p>
             <button className="button-on-dark mt-3" type="button" onClick={advance}>
               Avancar
