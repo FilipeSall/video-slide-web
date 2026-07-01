@@ -1,0 +1,11 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": [
+    {
+      "bucket": "video-slider-5e372.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /presentations/{presentationId}/videos/{fileName} {
+      allow read, write, delete: if true;
+    }
+  }
+}

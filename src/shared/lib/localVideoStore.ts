@@ -44,6 +44,10 @@ export async function saveLocalVideo(storagePath: string, file: File) {
   await runStoreOperation('readwrite', (store) => store.put(file, storagePath))
 }
 
+export async function deleteLocalVideo(storagePath: string) {
+  await runStoreOperation('readwrite', (store) => store.delete(storagePath))
+}
+
 export async function getLocalVideoUrl(storagePath: string) {
   const blob = await runStoreOperation<Blob | undefined>('readonly', (store) => store.get(storagePath))
 

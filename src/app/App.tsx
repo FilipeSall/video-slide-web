@@ -33,6 +33,7 @@ export default function App() {
   const [presentations, setPresentations] = useState<Presentation[]>([])
   const [view, setView] = useState<ViewState>({ name: 'library' })
   const [isLoading, setIsLoading] = useState(true)
+  const [deletingPresentationId, setDeletingPresentationId] = useState('')
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
@@ -72,11 +73,21 @@ export default function App() {
     setNotice('Apresentacao salva.')
   }
 
-  async function removePresentation(presentationId: string) {
-    await deletePresentation(presentationId)
-    setPresentations((currentPresentations) =>
-      currentPresentations.filter((presentation) => presentation.id !== presentationId),
-    )
+  async function removePresentation(presentation: Presentation) {
+    setDeletingPresentationId(presentation.id)
+    setNotice('')
+
+    try {
+      await deletePresentation(presentation)
+      setPresentations((currentPresentations) =>
+        currentPresentations.filter((currentPresentation) => currentPresentation.id !== presentation.id),
+      )
+      setNotice('Apresentacao excluida.')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Nao foi possivel excluir a apresentacao.')
+    } finally {
+      setDeletingPresentationId('')
+    }
   }
 
   if (view.name === 'player' && activePresentation) {
@@ -196,9 +207,10 @@ export default function App() {
                     <button
                       className="button-danger"
                       type="button"
-                      onClick={() => void removePresentation(presentation.id)}
+                      disabled={deletingPresentationId === presentation.id}
+                      onClick={() => void removePresentation(presentation)}
                     >
-                      Excluir
+                      {deletingPresentationId === presentation.id ? 'Excluindo...' : 'Excluir'}
                     </button>
                   </div>
                 </article>

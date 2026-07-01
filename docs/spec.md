@@ -59,6 +59,8 @@ Se alguma variavel obrigatoria estiver ausente, o app usa persistencia local par
 
 ## 5. Firebase
 
+O MVP nao usa Firebase Auth. O projeto opera como workspace unico interno.
+
 Firestore:
 
 - Colecao: `presentations`.
@@ -67,8 +69,7 @@ Firestore:
 
 Storage:
 
-- Caminho sem login: `presentations/{presentationId}/videos/{videoId}-{safeFileName}`.
-- Caminho futuro com login: `users/{userId}/presentations/{presentationId}/videos/{videoId}-{safeFileName}`.
+- Caminho: `presentations/{presentationId}/videos/{videoId}-{safeFileName}`.
 
 ## 6. Fluxos
 
@@ -112,6 +113,7 @@ Storage:
 - Normalizar `order` apos remover ou mover videos.
 - Salvar `updatedAt` a cada persistencia.
 - Tratar falhas de Firebase com mensagem clara.
+- Ao excluir videos ou apresentacoes, remover tambem os arquivos associados no Storage ou IndexedDB local.
 
 ## 9. Plano de testes
 
@@ -124,7 +126,6 @@ Storage:
 
 ## 10. Decisoes pendentes
 
-- Introduzir Firebase Auth ou manter workspace unico.
-- Definir regras finais de Firestore e Storage para ambiente compartilhado.
+- Avaliar endurecimento das regras Firebase para ambiente fora da rede interna.
 - Definir limites de tamanho/duracao por arquivo.
 - Definir identidade visual final da empresa.

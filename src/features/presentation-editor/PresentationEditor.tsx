@@ -5,7 +5,10 @@ import {
   type PlaybackMode,
   type VideoItem,
 } from '../../entities/video/types'
-import { uploadPresentationVideo } from '../../shared/firebase/presentationRepository'
+import {
+  deletePresentationVideo,
+  uploadPresentationVideo,
+} from '../../shared/firebase/presentationRepository'
 import { createId } from '../../shared/lib/file'
 import { formatBytes, formatDateTime, formatDuration } from '../../shared/lib/format'
 import { extractVideoMetadata } from '../../shared/lib/videoMetadata'
@@ -42,6 +45,7 @@ export function PresentationEditor({
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [deletingVideoId, setDeletingVideoId] = useState('')
   const orderedVideos = useMemo(() => sortVideos(presentation.videos), [presentation.videos])
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -104,11 +108,49 @@ export function PresentationEditor({
     })
   }
 
-  function removeVideo(videoId: string) {
-    onChange({
-      ...presentation,
-      videos: normalizeVideoOrder(presentation.videos.filter((video) => video.id !== videoId)),
-    })
+  async function removeVideo(videoId: string) {
+    const video = presentation.videos.find((currentVideo) => currentVideo.id === videoId)
+
+    if (!video) {
+      return
+    }
+
+    const title = presentation.title.trim()
+
+    if (!title) {
+      setError('Informe um titulo antes de remover videos.')
+      return
+    }
+
+    setDeletingVideoId(videoId)
+    setError('')
+
+    try {
+      const videos = normalizeVideoOrder(
+        presentation.videos.filter((currentVideo) => currentVideo.id !== videoId),
+      )
+      const nextPresentation: Presentation = {
+        ...presentation,
+        title,
+        videos,
+        status: videos.length > 0 ? 'ready' : 'draft',
+      }
+
+      await onSave(nextPresentation)
+      try {
+        await deletePresentationVideo(video)
+      } catch (assetError) {
+        setError(
+          assetError instanceof Error
+            ? `Video removido da apresentacao, mas o arquivo nao foi apagado: ${assetError.message}`
+            : 'Video removido da apresentacao, mas o arquivo nao foi apagado.',
+        )
+      }
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'Nao foi possivel remover o video.')
+    } finally {
+      setDeletingVideoId('')
+    }
   }
 
   function moveVideo(videoId: string, direction: -1 | 1) {
@@ -129,11 +171,22 @@ export function PresentationEditor({
   }
 
   async function handleSave() {
+    const title = presentation.title.trim()
+
+    if (!title) {
+      setError('Informe um titulo para salvar a apresentacao.')
+      return
+    }
+
     setIsSaving(true)
     setError('')
 
     try {
-      await onSave(presentation)
+      await onSave({
+        ...presentation,
+        title,
+        status: orderedVideos.length > 0 ? 'ready' : 'draft',
+      })
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Nao foi possivel salvar.')
     } finally {
@@ -331,8 +384,13 @@ export function PresentationEditor({
                     </option>
                   ))}
                 </select>
-                <button className="button-danger mt-auto" type="button" onClick={() => removeVideo(video.id)}>
-                  Remover
+                <button
+                  className="button-danger mt-auto"
+                  type="button"
+                  disabled={deletingVideoId === video.id}
+                  onClick={() => void removeVideo(video.id)}
+                >
+                  {deletingVideoId === video.id ? 'Removendo...' : 'Remover'}
                 </button>
               </div>
             </article>

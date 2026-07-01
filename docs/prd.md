@@ -78,7 +78,6 @@ Hoje a montagem e apresentacao de sequencias de videos tende a depender de ferra
 
 ## 11. Perguntas em aberto
 
-- O MVP definitivo tera Firebase Auth?
 - Havera multiplos designers usando o mesmo workspace?
 - O link da apresentacao precisara ser compartilhavel?
 - Existirao limites de tamanho, duracao ou formato de video?

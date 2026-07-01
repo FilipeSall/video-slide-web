@@ -8,14 +8,16 @@ import {
   setDoc,
 } from 'firebase/firestore'
 import {
+  deleteObject,
   getDownloadURL,
   ref,
   uploadBytesResumable,
   type UploadTaskSnapshot,
 } from 'firebase/storage'
 import type { Presentation } from '../../entities/presentation/types'
+import type { VideoItem } from '../../entities/video/types'
 import { sanitizeFileName } from '../lib/file'
-import { getLocalVideoUrl, saveLocalVideo } from '../lib/localVideoStore'
+import { deleteLocalVideo, getLocalVideoUrl, saveLocalVideo } from '../lib/localVideoStore'
 import { getFirebaseServices, hasFirebaseConfig } from './config'
 
 const localStorageKey = 'video-slide-web:presentations'
@@ -23,6 +25,15 @@ const localStorageKey = 'video-slide-web:presentations'
 type UploadResult = {
   storagePath: string
   downloadUrl: string
+}
+
+function isMissingStorageObject(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'storage/object-not-found'
+  )
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
@@ -125,16 +136,43 @@ export async function savePresentation(presentation: Presentation) {
   return normalizedPresentation
 }
 
-export async function deletePresentation(presentationId: string) {
+export async function deletePresentationVideo(video: Pick<VideoItem, 'storagePath'>) {
+  if (video.storagePath.startsWith('local-preview://')) {
+    await deleteLocalVideo(video.storagePath)
+    return
+  }
+
   const services = getFirebaseServices()
 
   if (!services) {
-    writeLocalPresentations(readLocalPresentations().filter((item) => item.id !== presentationId))
+    return
+  }
+
+  try {
+    await withTimeout(
+      deleteObject(ref(services.storage, video.storagePath)),
+      8000,
+      'Firebase Storage nao respondeu ao excluir o video.',
+    )
+  } catch (error) {
+    if (!isMissingStorageObject(error)) {
+      throw error
+    }
+  }
+}
+
+export async function deletePresentation(presentation: Presentation) {
+  await Promise.all(presentation.videos.map((video) => deletePresentationVideo(video)))
+
+  const services = getFirebaseServices()
+
+  if (!services) {
+    writeLocalPresentations(readLocalPresentations().filter((item) => item.id !== presentation.id))
     return
   }
 
   await withTimeout(
-    deleteDoc(doc(services.db, 'presentations', presentationId)),
+    deleteDoc(doc(services.db, 'presentations', presentation.id)),
     8000,
     'Firebase configurado, mas o Firestore nao respondeu ao excluir.',
   )
